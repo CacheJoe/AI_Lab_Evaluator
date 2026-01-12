@@ -49,8 +49,6 @@ html, body, [class*="css"] {
 # ---------------- Sidebar ----------------
 st.sidebar.markdown("## GC – AI Evaluator")
 page = st.sidebar.radio("Modules", ["Dashboard", "Evaluate", "Reports"])
-
-# Class selector kept for future, but NOT applied to data
 st.sidebar.selectbox("Class / Section", ["All", "CSE-A", "CSE-B", "CSE-C", "AI-ML", "DS"])
 
 st.markdown('<div class="erp-header">AI Lab Evaluation System</div>', unsafe_allow_html=True)
@@ -59,7 +57,7 @@ st.markdown('<div class="erp-header">AI Lab Evaluation System</div>', unsafe_all
 if "results" not in st.session_state:
     st.session_state["results"] = None
 
-# ---------------- Helper ----------------
+# ---------------- Helpers ----------------
 def integrity_badge(row):
     if row["Plagiarism"] == "HIGH":
         return "🔴 High Risk"
@@ -99,18 +97,37 @@ if page == "Evaluate":
         if st.session_state["results"]:
             df, pairwise, who, graph_html = st.session_state["results"]
 
-            # Add integrity badge column
+            # -------- Integrity Badge --------
             df["Integrity_Status"] = df.apply(integrity_badge, axis=1)
 
+            # -------- Similarity Partner Mapping --------
+            df["Matched_With"] = ""
+
+            if who is not None and not who.empty:
+                for _, row in who.iterrows():
+                    a = row["Suspected_Copier"]
+                    b = row["Likely_Source"]
+                    sim = int(float(row["Similarity"]))
+
+                    # For a
+                    cur = df.loc[df["File"] == a, "Matched_With"].values[0]
+                    if not cur or sim > int(cur.split("(")[-1].replace("%)", "")):
+                        df.loc[df["File"] == a, "Matched_With"] = f"{b} ({sim}%)"
+
+                    # For b
+                    cur = df.loc[df["File"] == b, "Matched_With"].values[0]
+                    if not cur or sim > int(cur.split("(")[-1].replace("%)", "")):
+                        df.loc[df["File"] == b, "Matched_With"] = f"{a} ({sim}%)"
+
+            # -------- Final Marks --------
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Final Marks</div>', unsafe_allow_html=True)
 
             st.dataframe(df, use_container_width=True)
             st.download_button("Download Final Marks", df.to_csv(index=False), "final_marks.csv")
-
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # ---- Plagiarism Risk Dashboard
+            # -------- Risk Dashboard --------
             st.markdown("### 📊 Plagiarism Risk Overview")
             counts = df["Plagiarism"].value_counts()
             c1, c2, c3 = st.columns(3)
@@ -118,7 +135,7 @@ if page == "Evaluate":
             c2.metric("🟠 Suspicious", int(counts.get("MEDIUM", 0)))
             c3.metric("🔴 High Risk", int(counts.get("HIGH", 0)))
 
-            # ---- Student Drilldown
+            # -------- Student Drilldown --------
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Student Drilldown</div>', unsafe_allow_html=True)
             student = st.selectbox("Select Student", df["File"].tolist())
@@ -128,6 +145,7 @@ if page == "Evaluate":
                 st.write("**Total Marks:**", row["Total_Marks"])
                 st.write("**Integrity Status:**", row["Integrity_Status"])
                 st.write("**Integrity Remark:**", row["Integrity_Remark"])
+                st.write("**Matched With:**", row["Matched_With"])
                 st.write("**Screenshot Status:**", row["Screenshot_Status"])
                 st.write("**Theory Relevance:**", f"{row['Theory_Relevance']*100:.0f}%")
                 st.write("**Algorithm Relevance:**", f"{row['Algorithm_Relevance']*100:.0f}%")
