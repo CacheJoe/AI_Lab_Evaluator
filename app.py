@@ -49,7 +49,9 @@ html, body, [class*="css"] {
 # ---------------- Sidebar ----------------
 st.sidebar.markdown("## GC – AI Evaluator")
 page = st.sidebar.radio("Modules", ["Dashboard", "Evaluate", "Reports"])
-class_selected = st.sidebar.selectbox("Class / Section", ["All", "CSE-A", "CSE-B", "CSE-C", "AI-ML", "DS"])
+
+# Class selector kept for future, but NOT applied to data
+st.sidebar.selectbox("Class / Section", ["All", "CSE-A", "CSE-B", "CSE-C", "AI-ML", "DS"])
 
 st.markdown('<div class="erp-header">AI Lab Evaluation System</div>', unsafe_allow_html=True)
 
@@ -97,33 +99,19 @@ if page == "Evaluate":
         if st.session_state["results"]:
             df, pairwise, who, graph_html = st.session_state["results"]
 
-            if class_selected != "All":
-                df = df[df["File"].str.contains(class_selected, case=False)]
-
-            # ---- Add integrity badge
+            # Add integrity badge column
             df["Integrity_Status"] = df.apply(integrity_badge, axis=1)
 
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Final Marks</div>', unsafe_allow_html=True)
 
-            st.dataframe(
-                df.style.apply(
-                    lambda x: [
-                        "background-color:#fee2e2" if v=="🔴 High Risk"
-                        else "background-color:#ffedd5" if v=="🟠 Suspicious"
-                        else "" for v in x
-                    ],
-                    subset=["Integrity_Status"]
-                ),
-                use_container_width=True
-            )
-
+            st.dataframe(df, use_container_width=True)
             st.download_button("Download Final Marks", df.to_csv(index=False), "final_marks.csv")
+
             st.markdown('</div>', unsafe_allow_html=True)
 
             # ---- Plagiarism Risk Dashboard
             st.markdown("### 📊 Plagiarism Risk Overview")
-
             counts = df["Plagiarism"].value_counts()
             c1, c2, c3 = st.columns(3)
             c1.metric("🟢 Clean", int(counts.get("LOW", 0)))
