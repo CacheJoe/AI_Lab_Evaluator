@@ -1,0 +1,9 @@
+pdfplumber
+PyPDF2
+pandas
+scikit-learn
+streamlit
+pillow
+imagehash
+sentence-transformers
+torch
