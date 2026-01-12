@@ -109,12 +109,10 @@ if page == "Evaluate":
                     b = row["Likely_Source"]
                     sim = int(float(row["Similarity"]))
 
-                    # For a
                     cur = df.loc[df["File"] == a, "Matched_With"].values[0]
                     if not cur or sim > int(cur.split("(")[-1].replace("%)", "")):
                         df.loc[df["File"] == a, "Matched_With"] = f"{b} ({sim}%)"
 
-                    # For b
                     cur = df.loc[df["File"] == b, "Matched_With"].values[0]
                     if not cur or sim > int(cur.split("(")[-1].replace("%)", "")):
                         df.loc[df["File"] == b, "Matched_With"] = f"{a} ({sim}%)"
@@ -135,10 +133,25 @@ if page == "Evaluate":
             c2.metric("🟠 Suspicious", int(counts.get("MEDIUM", 0)))
             c3.metric("🔴 High Risk", int(counts.get("HIGH", 0)))
 
-            # -------- Student Drilldown --------
+            # -------- Student Drilldown with Category Filter --------
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Student Drilldown</div>', unsafe_allow_html=True)
-            student = st.selectbox("Select Student", df["File"].tolist())
+
+            category = st.selectbox(
+                "Filter by Integrity Category",
+                ["All", "Clean", "Suspicious", "High Risk"]
+            )
+
+            if category == "Clean":
+                filtered = df[df["Plagiarism"] == "LOW"]
+            elif category == "Suspicious":
+                filtered = df[df["Plagiarism"] == "MEDIUM"]
+            elif category == "High Risk":
+                filtered = df[df["Plagiarism"] == "HIGH"]
+            else:
+                filtered = df
+
+            student = st.selectbox("Select Student", filtered["File"].tolist())
 
             if student:
                 row = df[df["File"] == student].iloc[0]
