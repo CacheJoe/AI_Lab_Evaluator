@@ -1,17 +1,12 @@
-import pandas as pd
 from pyvis.network import Network
+import pandas as pd
+import tempfile
 import os
 
-def build_graph(csv_file):
-    if not os.path.exists(csv_file):
-        print("❌ who_copied_from_whom.csv not found")
-        return
+def build_graph_html(who_df):
 
-    df = pd.read_csv(csv_file)
-
-    if df.empty:
-        print("⚠️ No plagiarism pairs found")
-        return
+    if who_df is None or who_df.empty:
+        return "<h4>No plagiarism relationships detected</h4>"
 
     net = Network(
         height="700px",
@@ -41,17 +36,23 @@ def build_graph(csv_file):
     }
     """)
 
-    for _, row in df.iterrows():
+    for _, row in who_df.iterrows():
         copier = row["Suspected_Copier"]
         source = row["Likely_Source"]
         sim = float(row["Similarity"])
 
-        net.add_node(copier, label=copier, color="#ef4444")   # red
-        net.add_node(source, label=source, color="#3b82f6")  # blue
-
+        net.add_node(copier, label=copier, color="#ef4444")
+        net.add_node(source, label=source, color="#3b82f6")
         net.add_edge(copier, source, value=sim, title=f"{sim}% similarity")
 
-    output = "reports/plagiarism_network.html"
+    # PyVis requires a temp file even in Cloud
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
+    net.write_html(tmp.name)
+    tmp.close()
 
-    net.write_html(output, notebook=False)   # CRITICAL FIX
-    print("✅ Plagiarism network written to", output)
+    with open(tmp.name, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    os.unlink(tmp.name)
+
+    return html
