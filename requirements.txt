@@ -7,3 +7,5 @@ pillow
 imagehash
 sentence-transformers
 torch
+pyvis
+
