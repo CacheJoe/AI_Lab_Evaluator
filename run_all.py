@@ -32,7 +32,7 @@ def run_evaluation(submission_folder, topic):
             df[col] = ""
 
     # -------------------------------------------------
-    # Plagiarism flags
+    # Plagiarism flags (text)
     # -------------------------------------------------
     df["Plagiarism"] = plagiarism.plagiarism_flags(df["Theory_Text"].fillna("").tolist())
 
@@ -105,8 +105,23 @@ def run_evaluation(submission_folder, topic):
     )
     df["Total_Marks"] += understanding_score
 
-    integrity_score = df["Plagiarism"].map({"LOW":15,"MEDIUM":8,"HIGH":0}).fillna(0)
-    df["Total_Marks"] += integrity_score
+    # -------------------------------------------------
+    # INTEGRITY — MUTUAL PENALTY MODEL
+    # -------------------------------------------------
+
+    # Force HIGH if screenshot plagiarism detected
+    df.loc[df["Screenshot_Plagiarism"].str.strip() != "", "Plagiarism"] = "HIGH"
+
+    df["Integrity_Points"] = 15
+    df["Integrity_Remark"] = ""
+
+    df.loc[df["Plagiarism"] == "MEDIUM", "Integrity_Points"] = 8
+    df.loc[df["Plagiarism"] == "HIGH", "Integrity_Points"] = 0
+
+    df.loc[df["Plagiarism"] == "MEDIUM", "Integrity_Remark"] = "Suspicious similarity detected"
+    df.loc[df["Plagiarism"] == "HIGH", "Integrity_Remark"] = "High similarity – likely copied"
+
+    df["Total_Marks"] += df["Integrity_Points"]
 
     df["Total_Marks"] = df["Total_Marks"].round(1).clip(0,100)
 
