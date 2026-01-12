@@ -108,8 +108,6 @@ def run_evaluation(submission_folder, topic):
     # -------------------------------------------------
     # INTEGRITY — MUTUAL PENALTY MODEL
     # -------------------------------------------------
-
-    # Force HIGH if screenshot plagiarism detected
     df.loc[df["Screenshot_Plagiarism"].str.strip() != "", "Plagiarism"] = "HIGH"
 
     df["Integrity_Points"] = 15
@@ -122,13 +120,28 @@ def run_evaluation(submission_folder, topic):
     df.loc[df["Plagiarism"] == "HIGH", "Integrity_Remark"] = "High similarity – likely copied"
 
     df["Total_Marks"] += df["Integrity_Points"]
-
     df["Total_Marks"] = df["Total_Marks"].round(1).clip(0,100)
 
     # -------------------------------------------------
-    # Plagiarism network
+    # BOILERPLATE-STRIPPED PLAGIARISM MATRIX
     # -------------------------------------------------
-    sim_matrix, index_map = plagiarism_matrix(df["Theory_Text"].fillna("").tolist())
+    cleaned_texts = []
+
+    for t in df["Theory_Text"].fillna(""):
+        t = t.lower()
+
+        for junk in [
+            "ramdeobaba", "rcoem", "experiment", "aim", "objective",
+            "department", "computer science", "data science",
+            "university", "semester", "roll no", "name:", "date:"
+        ]:
+            t = t.replace(junk, "")
+
+        t = "".join([c for c in t if not c.isdigit()])
+        t = " ".join(t.split())
+        cleaned_texts.append(t)
+
+    sim_matrix, index_map = plagiarism_matrix(cleaned_texts)
 
     pairwise_df = None
     who_df = None
