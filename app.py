@@ -57,6 +57,15 @@ st.markdown('<div class="erp-header">AI Lab Evaluation System</div>', unsafe_all
 if "results" not in st.session_state:
     st.session_state["results"] = None
 
+# ---------------- Helper ----------------
+def integrity_badge(row):
+    if row["Plagiarism"] == "HIGH":
+        return "🔴 High Risk"
+    elif row["Plagiarism"] == "MEDIUM":
+        return "🟠 Suspicious"
+    else:
+        return "🟢 Clean"
+
 # ---------------- Evaluate Page ----------------
 if page == "Evaluate":
 
@@ -91,12 +100,37 @@ if page == "Evaluate":
             if class_selected != "All":
                 df = df[df["File"].str.contains(class_selected, case=False)]
 
+            # ---- Add integrity badge
+            df["Integrity_Status"] = df.apply(integrity_badge, axis=1)
+
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Final Marks</div>', unsafe_allow_html=True)
-            st.dataframe(df, use_container_width=True)
+
+            st.dataframe(
+                df.style.apply(
+                    lambda x: [
+                        "background-color:#fee2e2" if v=="🔴 High Risk"
+                        else "background-color:#ffedd5" if v=="🟠 Suspicious"
+                        else "" for v in x
+                    ],
+                    subset=["Integrity_Status"]
+                ),
+                use_container_width=True
+            )
+
             st.download_button("Download Final Marks", df.to_csv(index=False), "final_marks.csv")
             st.markdown('</div>', unsafe_allow_html=True)
 
+            # ---- Plagiarism Risk Dashboard
+            st.markdown("### 📊 Plagiarism Risk Overview")
+
+            counts = df["Plagiarism"].value_counts()
+            c1, c2, c3 = st.columns(3)
+            c1.metric("🟢 Clean", int(counts.get("LOW", 0)))
+            c2.metric("🟠 Suspicious", int(counts.get("MEDIUM", 0)))
+            c3.metric("🔴 High Risk", int(counts.get("HIGH", 0)))
+
+            # ---- Student Drilldown
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Student Drilldown</div>', unsafe_allow_html=True)
             student = st.selectbox("Select Student", df["File"].tolist())
@@ -104,7 +138,8 @@ if page == "Evaluate":
             if student:
                 row = df[df["File"] == student].iloc[0]
                 st.write("**Total Marks:**", row["Total_Marks"])
-                st.write("**Plagiarism Level:**", row["Plagiarism"])
+                st.write("**Integrity Status:**", row["Integrity_Status"])
+                st.write("**Integrity Remark:**", row["Integrity_Remark"])
                 st.write("**Screenshot Status:**", row["Screenshot_Status"])
                 st.write("**Theory Relevance:**", f"{row['Theory_Relevance']*100:.0f}%")
                 st.write("**Algorithm Relevance:**", f"{row['Algorithm_Relevance']*100:.0f}%")
@@ -112,7 +147,7 @@ if page == "Evaluate":
                 st.write("**Conclusion Relevance:**", f"{row['Conclusion_Relevance']*100:.0f}%")
 
                 if str(row["Screenshot_Plagiarism"]).strip():
-                    st.warning("Screenshot copied from: " + str(row["Screenshot_Plagiarism"]))
+                    st.error("Screenshot copied from: " + str(row["Screenshot_Plagiarism"]))
 
             st.markdown('</div>', unsafe_allow_html=True)
 
