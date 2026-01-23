@@ -2,10 +2,11 @@ pdfplumber
 PyPDF2
 pandas
 scikit-learn
-streamlit
+streamlit>=1.23.0
 pillow
 imagehash
 sentence-transformers
 torch
 pyvis
+
 
