@@ -48,8 +48,7 @@ html, body, [class*="css"] {
 
 # ---------------- Sidebar ----------------
 st.sidebar.markdown("## GC – AI Evaluator")
-page = st.sidebar.radio("Modules", ["Dashboard", "Evaluate", "Reports"])
-st.sidebar.selectbox("Class / Section", ["All", "CSE-A", "CSE-B", "CSE-C", "AI-ML", "DS"])
+page = st.sidebar.radio("Modules", ["Evaluate", "Reports"])
 
 st.markdown('<div class="erp-header">AI Lab Evaluation System</div>', unsafe_allow_html=True)
 
@@ -66,7 +65,6 @@ def integrity_badge(row):
     else:
         return "🟢 Clean"
 
-# 🔧 NEW: AI likelihood badge (faculty-safe language)
 def ai_badge(val):
     if val >= 0.6:
         return "🔴 High AI-likelihood"
@@ -106,9 +104,9 @@ if page == "Evaluate":
         if st.session_state["results"]:
             df, pairwise, who, graph_html = st.session_state["results"]
 
-            # -------- Integrity + AI Badges --------
+            # -------- Status Badges --------
             df["Integrity_Status"] = df.apply(integrity_badge, axis=1)
-            df["AI_Status"] = df["AI_Likelihood"].apply(ai_badge)   # 🔧 NEW
+            df["AI_Status"] = df["AI_Likelihood"].apply(ai_badge)
 
             # -------- Similarity Mapping --------
             df["Matched_With"] = ""
@@ -119,39 +117,56 @@ if page == "Evaluate":
                     df.loc[df["File"] == a, "Matched_With"] = label
                     df.loc[df["File"] == b, "Matched_With"] = label
 
-            # -------- Final Marks Table --------
+            # -------- Summary Table --------
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
-            st.markdown('<div class="erp-title">Final Marks</div>', unsafe_allow_html=True)
+            st.markdown('<div class="erp-title">Final Marks Summary</div>', unsafe_allow_html=True)
 
-            display_cols = [
-                "File",
-                "Final_Marks_5",
-                "Regulated_Marks",
-                "AI_Status",          # 🔧 NEW
-                "Integrity_Status",
-                "Matched_With"
-            ]
-            st.dataframe(df[display_cols], use_container_width=True)
-            st.download_button("Download Final Marks", df.to_csv(index=False), "final_marks.csv")
+            st.dataframe(
+                df[
+                    [
+                        "File",
+                        "Final_Marks_5",
+                        "Regulated_Marks",
+                        "AI_Status",
+                        "Integrity_Status",
+                        "Matched_With"
+                    ]
+                ],
+                use_container_width=True
+            )
+
             st.markdown('</div>', unsafe_allow_html=True)
 
             # -------- Student Drilldown --------
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
-            st.markdown('<div class="erp-title">Student Drilldown</div>', unsafe_allow_html=True)
+            st.markdown('<div class="erp-title">Student Evaluation Details</div>', unsafe_allow_html=True)
 
             student = st.selectbox("Select Student", df["File"].tolist())
 
             if student:
                 row = df[df["File"] == student].iloc[0]
 
+                st.subheader("📌 Final Outcome")
                 st.write("**Final Marks (out of 5):**", row["Final_Marks_5"])
+                st.write("**Regulated Marks:**", row["Regulated_Marks"])
                 st.write("**AI Writing Pattern:**", ai_badge(row["AI_Likelihood"]))
-                st.caption(f"Internal confidence: {row['AI_Likelihood']*100:.0f}%")
-
                 st.write("**Integrity Status:**", row["Integrity_Status"])
                 st.write("**Integrity Remark:**", row["Integrity_Remark"])
-                st.write("**Matched With:**", row["Matched_With"])
-                st.write("**Screenshot Status:**", row["Screenshot_Status"])
+
+                st.subheader("📄 Document Structure")
+                st.write("**Missing Sections:**", row["Missing_Sections"] or "None")
+                st.write("**Theory Word Count:**", row["Theory_Words"])
+
+                st.subheader("🧠 Semantic Understanding")
+                st.write("Theory Relevance:", f"{row['Theory_Relevance']*100:.0f}%")
+                st.write("Algorithm Relevance:", f"{row['Algorithm_Relevance']*100:.0f}%")
+                st.write("Analysis Relevance:", f"{row['Analysis_Relevance']*100:.0f}%")
+                st.write("Conclusion Relevance:", f"{row['Conclusion_Relevance']*100:.0f}%")
+
+                st.subheader("🖼 Evidence")
+                st.write("Screenshot Status:", row["Screenshot_Status"])
+                if str(row["Screenshot_Plagiarism"]).strip():
+                    st.error("Screenshot copied from: " + str(row["Screenshot_Plagiarism"]))
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -164,3 +179,9 @@ if page == "Reports" and st.session_state["results"]:
         st.markdown('<div class="erp-title">Plagiarism Network</div>', unsafe_allow_html=True)
         st.components.v1.html(graph_html, height=700)
         st.markdown('</div>', unsafe_allow_html=True)
+
+    if who is not None:
+        st.dataframe(who, use_container_width=True)
+
+    if pairwise is not None:
+        st.dataframe(pairwise, use_container_width=True)
