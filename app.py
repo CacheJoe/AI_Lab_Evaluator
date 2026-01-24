@@ -100,28 +100,30 @@ if page == "Evaluate":
             # -------- Integrity Badge --------
             df["Integrity_Status"] = df.apply(integrity_badge, axis=1)
 
-            # -------- Similarity Partner Mapping --------
+            # -------- Similarity Mapping (NEW SCHEMA) --------
             df["Matched_With"] = ""
 
             if who is not None and not who.empty:
-                for _, row in who.iterrows():
-                    a = row["Suspected_Copier"]
-                    b = row["Likely_Source"]
-                    sim = int(float(row["Similarity"]))
+                for _, r in who.iterrows():
+                    a, b = r["Student_1"], r["Student_2"]
+                    label = f"{r['Risk_Level']} ({r['Similarity']}%)"
 
-                    cur = df.loc[df["File"] == a, "Matched_With"].values[0]
-                    if not cur or sim > int(cur.split("(")[-1].replace("%)", "")):
-                        df.loc[df["File"] == a, "Matched_With"] = f"{b} ({sim}%)"
-
-                    cur = df.loc[df["File"] == b, "Matched_With"].values[0]
-                    if not cur or sim > int(cur.split("(")[-1].replace("%)", "")):
-                        df.loc[df["File"] == b, "Matched_With"] = f"{a} ({sim}%)"
+                    df.loc[df["File"] == a, "Matched_With"] = label
+                    df.loc[df["File"] == b, "Matched_With"] = label
 
             # -------- Final Marks --------
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Final Marks</div>', unsafe_allow_html=True)
 
-            st.dataframe(df, use_container_width=True)
+            # 🔧 UPDATED: show regulated view
+            display_cols = [
+                "File",
+                "Final_Marks_5",
+                "Regulated_Marks",
+                "Integrity_Status",
+                "Matched_With"
+            ]
+            st.dataframe(df[display_cols], use_container_width=True)
             st.download_button("Download Final Marks", df.to_csv(index=False), "final_marks.csv")
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -133,33 +135,25 @@ if page == "Evaluate":
             c2.metric("🟠 Suspicious", int(counts.get("MEDIUM", 0)))
             c3.metric("🔴 High Risk", int(counts.get("HIGH", 0)))
 
-            # -------- Student Drilldown with Category Filter --------
+            # -------- Student Drilldown --------
             st.markdown('<div class="erp-panel">', unsafe_allow_html=True)
             st.markdown('<div class="erp-title">Student Drilldown</div>', unsafe_allow_html=True)
 
-            category = st.selectbox(
-                "Filter by Integrity Category",
-                ["All", "Clean", "Suspicious", "High Risk"]
-            )
-
-            if category == "Clean":
-                filtered = df[df["Plagiarism"] == "LOW"]
-            elif category == "Suspicious":
-                filtered = df[df["Plagiarism"] == "MEDIUM"]
-            elif category == "High Risk":
-                filtered = df[df["Plagiarism"] == "HIGH"]
-            else:
-                filtered = df
-
-            student = st.selectbox("Select Student", filtered["File"].tolist())
+            student = st.selectbox("Select Student", df["File"].tolist())
 
             if student:
                 row = df[df["File"] == student].iloc[0]
-                st.write("**Total Marks:**", row["Total_Marks"])
+
+                # 🔧 UPDATED MARK DISPLAY
+                st.write("**Final Marks (out of 5):**", row["Final_Marks_5"])
+                st.write("**Regulated Marks (100):**", row["Regulated_Marks"])
+                st.write("**AI Likelihood:**", f"{row['AI_Likelihood']*100:.0f}%")
+
                 st.write("**Integrity Status:**", row["Integrity_Status"])
                 st.write("**Integrity Remark:**", row["Integrity_Remark"])
                 st.write("**Matched With:**", row["Matched_With"])
                 st.write("**Screenshot Status:**", row["Screenshot_Status"])
+
                 st.write("**Theory Relevance:**", f"{row['Theory_Relevance']*100:.0f}%")
                 st.write("**Algorithm Relevance:**", f"{row['Algorithm_Relevance']*100:.0f}%")
                 st.write("**Analysis Relevance:**", f"{row['Analysis_Relevance']*100:.0f}%")
@@ -182,8 +176,8 @@ if page == "Reports" and st.session_state["results"]:
 
     if who is not None:
         st.dataframe(who, use_container_width=True)
-        st.download_button("Download Copy Network", who.to_csv(index=False), "who_copied_from_whom.csv")
+        st.download_button("Download Similarity Risk Report", who.to_csv(index=False), "similarity_risk.csv")
 
     if pairwise is not None:
         st.dataframe(pairwise, use_container_width=True)
-        st.download_button("Download Pairwise", pairwise.to_csv(index=False), "pairwise_similarity.csv")
+        st.download_button("Download Pairwise Similarity", pairwise.to_csv(index=False), "pairwise_similarity.csv")
