@@ -4,25 +4,43 @@ import os
 
 def build_graph_html(who_df):
     """
-    Builds a stable plagiarism similarity network
-    based on UNIQUE undirected pairs:
-    Student_1 <-> Student_2
+    Builds a stable, non-wiggling plagiarism similarity network.
+
+    Expected schema of who_df:
+    - Student_1
+    - Student_2
+    - Similarity (percentage, numeric)
+    - Risk_Level (Suspicious | High Risk | Near Duplicate)
+
+    Returns:
+    - HTML string for Streamlit embedding
     """
 
+    # -----------------------------------------
+    # Guard conditions
+    # -----------------------------------------
     if who_df is None or who_df.empty:
         return None
 
+    # -----------------------------------------
+    # Ensure output directory exists (Cloud-safe)
+    # -----------------------------------------
+    os.makedirs("reports", exist_ok=True)
+
+    # -----------------------------------------
+    # Create network (undirected similarity)
+    # -----------------------------------------
     net = Network(
         height="700px",
         width="100%",
         bgcolor="#ffffff",
         font_color="black",
-        directed=False   # similarity is undirected
+        directed=False
     )
 
-    # -------------------------------------------------
-    # Stable physics (stabilize once, then freeze)
-    # -------------------------------------------------
+    # -----------------------------------------
+    # Stable physics configuration
+    # -----------------------------------------
     net.set_options("""
     {
       "nodes": {
@@ -31,33 +49,39 @@ def build_graph_html(who_df):
         "font": { "size": 14 }
       },
       "edges": {
-        "font": { "size": 12 }
+        "font": { "size": 12 },
+        "smooth": true
       },
       "physics": {
         "enabled": true,
         "barnesHut": {
           "gravitationalConstant": -3000,
-          "springLength": 120
+          "springLength": 120,
+          "springConstant": 0.04
         },
         "stabilization": {
           "enabled": true,
           "iterations": 300,
           "fit": true
         }
+      },
+      "interaction": {
+        "hover": true,
+        "tooltipDelay": 200
       }
     }
     """)
 
-    # -------------------------------------------------
-    # Add nodes & edges (NEW SCHEMA)
-    # -------------------------------------------------
+    # -----------------------------------------
+    # Add nodes & edges (NEW schema)
+    # -----------------------------------------
     for _, row in who_df.iterrows():
         a = row["Student_1"]
         b = row["Student_2"]
         sim = float(row["Similarity"])
-        risk = row.get("Risk_Level", "Similarity")
+        risk = row.get("Risk_Level", "Suspicious")
 
-        # color by risk
+        # Edge color by risk
         edge_color = (
             "#dc2626" if risk == "Near Duplicate" else
             "#f59e0b" if risk == "High Risk" else
@@ -75,13 +99,17 @@ def build_graph_html(who_df):
             color=edge_color
         )
 
-    output = "reports/plagiarism_network.html"
-    net.write_html(output, notebook=False)
+    # -----------------------------------------
+    # Write HTML
+    # -----------------------------------------
+    output_path = "reports/plagiarism_network.html"
+    net.write_html(output_path, notebook=False)
 
-    # -------------------------------------------------
-    # HARD FREEZE via JS (pyvis-version safe)
-    # -------------------------------------------------
-    with open(output, "r", encoding="utf-8") as f:
+    # -----------------------------------------
+    # HARD FREEZE (pyvis-version agnostic)
+    # Disable physics AFTER stabilization
+    # -----------------------------------------
+    with open(output_path, "r", encoding="utf-8") as f:
         html = f.read()
 
     html = html.replace(
@@ -94,7 +122,7 @@ def build_graph_html(who_df):
         """
     )
 
-    with open(output, "w", encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
     return html
